@@ -1,35 +1,27 @@
-##############################
-# Diabete Feature Engineering
-##############################
-
-
-
-
-
 # Gerekli Kütüphane ve Fonksiyonlar
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score,roc_auc_score
-# from sklearn.model_selection import GridSearchCV, cross_validate
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV, cross_validate
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 import warnings
-warnings.simplefilter(action="ignore")
+import joblib
+warnings.simplefilter(action="ignore"),
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
-#pd.set_option('display.max_rows', 20)
+pd.set_option('display.max_rows', 20)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
-
-df = pd.read_csv("/Users/Casper/Desktop/diabetes.csv")
+df = pd.read_csv("diabetes.csv")
 df.head()
-
-
 
 def check_df(dataframe, head=5):
     print("##################### Shape #####################")
@@ -47,9 +39,7 @@ def check_df(dataframe, head=5):
 
 check_df(df)
 
-
 df.head()
-
 
 def grab_col_names(dataframe, cat_th=10, car_th=20):
     """
@@ -108,23 +98,13 @@ def grab_col_names(dataframe, cat_th=10, car_th=20):
 
     return cat_cols, num_cols, cat_but_car
 
-
-
-
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-
 
 cat_cols
 num_cols
 cat_but_car
 
-
-##################################
 # KATEGORİK DEĞİŞKENLERİN ANALİZİ
-##################################
-
-
 def cat_summary(dataframe, col_name, plot=True): # plot:true olursa if çalışır.
     print(pd.DataFrame({col_name: dataframe[col_name].value_counts(),  #değişkende hangi degerden kacar adet var?
                         "Ratio": 100 * dataframe[col_name].value_counts() / len(dataframe)})) # deger adetlerini toplam deger sayısına bölümü oran verir.
@@ -136,13 +116,10 @@ def cat_summary(dataframe, col_name, plot=True): # plot:true olursa if çalış�
 # kategorik değişkenimde deniyorum.
 cat_summary(df, "Outcome")
 
-
 for col in cat_cols:
     cat_summary(df, col)
 
-##################################
 # NUMERİK DEĞİŞKENLERİN ANALİZİ
-##################################
 
 def num_summary(dataframe, numerical_col, plot=False):  # plot:true olursa if çalışır.
     quantiles = [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99] # hangi ceyreklikleri istiyorum?
@@ -157,23 +134,17 @@ def num_summary(dataframe, numerical_col, plot=False):  # plot:true olursa if ç
 for col in num_cols: # num_cols: grab_col_names fonksiyonundan elde ettigim numerik değişkenlerim.
     num_summary(df, col, plot=False)
 
-##################################
+
 # NUMERİK DEĞİŞKENLERİN TARGET GÖRE ANALİZİ
-##################################
 
 # numerik degişkenlerin target değişkene göre ortalamalarını inceleyelim:
 def target_summary_with_num(dataframe, target, numerical_col):
     print(dataframe.groupby(target).agg({numerical_col: "mean"}), end="\n\n\n")
 
-
 for col in num_cols:
     target_summary_with_num(df, "Outcome", col)
 
-
-##################################
 # KORELASYON
-##################################
-
 
 df.corr()
 
@@ -183,31 +154,36 @@ sns.heatmap(df.corr(), annot=True, fmt=".2f", ax=ax, cmap="magma")
 ax.set_title("Correlation Matrix", fontsize=20)
 plt.show()
 
-
-
-##################################
 # BASE MODEL KURULUMU
-##################################
 
+# Bağımsız ve bağımlı değişkenlerin belirlenmesi
+X = df.drop("Outcome", axis=1)  # Outcome haricindeki tüm sütunlar
+y = df["Outcome"]  # Hedef değişken
 
+# Eğitim ve test setlerinin oluşturulması
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
+
+# Standartlaştırma (isteğe bağlı, eğer yapmazsan bazı algoritmalar olumsuz etkilenebilir)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Modelin eğitilmesi ve tahminler
 rf_model = RandomForestClassifier(random_state=46).fit(X_train, y_train)
 y_pred = rf_model.predict(X_test)
 
-
-print(f"Accuracy: {round(accuracy_score(y_pred, y_test), 2)}") # basarı oranı
-print(f"Recall: {round(recall_score(y_pred,y_test),3)}") # Gercekte diyabet olanların kacına diyabet dedigi
-print(f"Precision: {round(precision_score(y_pred,y_test), 2)}") # Recall'in tam tersi. Model tarafından tahmin edilen degerlerin kac tanesi diyabet
-print(f"F1: {round(f1_score(y_pred,y_test), 2)}") # Recall ve precision ortalaması
-print(f"Auc: {round(roc_auc_score(y_pred,y_test), 2)}") # farklı sınıflandırma esik degerlerine göre basarı
-
+# Performans metriklerinin hesaplanması
+print(f"Accuracy: {round(accuracy_score(y_pred, y_test), 2)}")
+print(f"Recall: {round(recall_score(y_pred, y_test), 3)}")
+print(f"Precision: {round(precision_score(y_pred, y_test), 2)}")
+print(f"F1: {round(f1_score(y_pred, y_test), 2)}")
+print(f"AUC: {round(roc_auc_score(y_pred, y_test), 2)}")
 # Accuracy: 0.77
 # Recall: 0.706 # pozitif sınıfın ne kadar başarılı tahmin edildiği
 # Precision: 0.59 # Pozitif sınıf olarak tahmin edilen değerlerin başarısı
 # F1: 0.64
 # Auc: 0.75
 
-
-# Model hangi değişkene daha cok önem varmiş?
 def plot_importance(model, features, num=len(X), save=False):
     feature_imp = pd.DataFrame({'Value': model.feature_importances_, 'Feature': features.columns})
     plt.figure(figsize=(10, 10))
@@ -222,15 +198,10 @@ def plot_importance(model, features, num=len(X), save=False):
 
 plot_importance(rf_model, X)
 
+#FEATURE ENGINEERING
 
-
-##################################
-# GÖREV 2: FEATURE ENGINEERING
-##################################
-
-##################################
 # EKSİK DEĞER ANALİZİ
-##################################
+
 df.isnull().sum() # eksik degerler yoktu. Fakat sıfır olamayacak değişkenlere sıfır atanmıstı.
 df.describe()
 # Bir insanda Pregnancies ve Outcome dışındaki değişken değerleri 0 olamayacağı bilinmektedir.
@@ -263,7 +234,6 @@ def missing_values_table(dataframe, na_name=False):
 
 na_columns = missing_values_table(df, na_name=True)
 
-
 # Eksik Değerlerin Bağımlı Değişken ile İlişkisinin İncelenmesi
 # amacımız eksik degerler ile var olan degerlerin karsılastırmasını yapmak olacak.
 
@@ -277,26 +247,18 @@ def missing_vs_target(dataframe, target, na_columns):
         print(pd.DataFrame({"TARGET_MEAN": temp_df.groupby(col)[target].mean(),
                             "Count": temp_df.groupby(col)[target].count()}), end="\n\n\n")
 
-
 missing_vs_target(df, "Outcome", na_columns)
 # Eksikse 1 değilse 0.
-
-
-
 
 # Eksik Değerlerin Doldurulması
 for col in zero_columns:
     df.loc[df[col].isnull(), col] = df[col].median()
 
-
 df.isnull().sum()
 
 df.describe()
 
-##################################
 # AYKIRI DEĞER ANALİZİ
-##################################
-
 
 # aykırı degerler için limit belirleme
 def outlier_thresholds(dataframe, col_name, q1=0.05, q3=0.95):
@@ -307,7 +269,6 @@ def outlier_thresholds(dataframe, col_name, q1=0.05, q3=0.95):
     low_limit = quartile1 - 1.5 * interquantile_range
     return low_limit, up_limit
 
-
 # aykırı deger var mı yok mu?
 def check_outlier(dataframe, col_name):
     low_limit, up_limit = outlier_thresholds(dataframe, col_name)
@@ -316,17 +277,13 @@ def check_outlier(dataframe, col_name):
     else:
         return False
 
-
-
-
 # aykırı degerleri baskılama
 def replace_with_thresholds(dataframe, variable, q1=0.05, q3=0.95):
     low_limit, up_limit = outlier_thresholds(dataframe, variable, q1=0.05, q3=0.95)
     dataframe.loc[(dataframe[variable] < low_limit), variable] = low_limit
     dataframe.loc[(dataframe[variable] > up_limit), variable] = up_limit
 
-
-# sns.boxplot(x=df["Insulin"])
+sns.boxplot(x=df["Insulin"])
 
 # Aykırı Değer Analizi ve Baskılama İşlemi
 for col in df.columns:
@@ -334,20 +291,14 @@ for col in df.columns:
     if check_outlier(df, col):
         replace_with_thresholds(df, col)
 
-
 for col in df.columns:
     print(col, check_outlier(df, col))
 
-
-
-##################################
 # ÖZELLİK ÇIKARIMI
-##################################
 
 # Yaş değişkenini kategorilere ayırıp yeni yaş değişkeni oluşturulması
 df.loc[(df["Age"] >= 21) & (df["Age"] < 50), "NEW_AGE_CAT"] = "mature"
 df.loc[(df["Age"] >= 50), "NEW_AGE_CAT"] = "senior"
-
 
 df.head()
 
@@ -378,7 +329,6 @@ df.loc[((df["Glucose"] >= 100) & (df["Glucose"] <= 125)) & (df["Age"] >= 50), "N
 df.loc[(df["Glucose"] > 125) & ((df["Age"] >= 21) & (df["Age"] < 50)), "NEW_AGE_GLUCOSE_NOM"] = "highmature"
 df.loc[(df["Glucose"] > 125) & (df["Age"] >= 50), "NEW_AGE_GLUCOSE_NOM"] = "highsenior"
 
-
 # İnsulin Değeri ile Kategorik değişken türetmek
 def set_insulin(dataframe, col_name="Insulin"):
     if 16 <= dataframe[col_name] <= 166:
@@ -386,27 +336,25 @@ def set_insulin(dataframe, col_name="Insulin"):
     else:
         return "Abnormal"
 
-
 df["NEW_INSULIN_SCORE"] = df.apply(set_insulin, axis=1)
 
 df.head()
 
-df["NEW_GLUCOSE*INSULIN"] = df["Glucose"] * df["Insulin"]
+df["NEW_GLUCOSE*Insulin"] = df["Glucose"] * df["Insulin"]
 
-# sıfır olan değerler dikkat!!!!
-df["NEW_GLUCOSE*PREGNANCIES"] = df["Glucose"] * df["Pregnancies"]
-#df["NEW_GLUCOSE*PREGNANCIES"] = df["Glucose"] * (1+ df["Pregnancies"])
+#sıfır olan değerler dikkat!
+#df["NEW_GLUCOSE*PREGNANCIES"] = df["Glucose"] * df["Pregnancies"]
+df["NEW_GLUCOSE*Pregnancies"] = df["Glucose"] * (1+ df["Pregnancies"])
 
 df.head()
 
 # Kolonların büyültülmesi
-df.columns = [col.upper() for col in df.columns]
+#df.columns = [col.upper() for col in df.columns]
 
 df.head()
 
-##################################
 # ENCODING
-##################################
+
 num_cols
 # Değişkenlerin tiplerine göre ayrılması işlemi
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
@@ -441,9 +389,7 @@ df = one_hot_encoder(df, cat_cols, drop_first=True)
 
 df.head()
 
-##################################
 # STANDARTLAŞTIRMA
-##################################
 
 num_cols
 
@@ -457,26 +403,21 @@ df.describe()
 
 df.shape
 
-##################################
 # MODELLEME
-##################################
 
 # Feature Engineering ardından model basarısını degerlendirelim.
 
 df.head()
 df.columns
 
-
-rf_model = RandomForestClassifier(random_state=46).fit(X_train, y_train)
-y_pred = rf_model.predict(X_test)
+diabet_rf_model = RandomForestClassifier(random_state=46).fit(X_train, y_train)
+y_pred = diabet_rf_model.predict(X_test)
 
 print(f"Accuracy: {round(accuracy_score(y_pred, y_test), 2)}")
 print(f"Recall: {round(recall_score(y_pred,y_test),3)}")
 print(f"Precision: {round(precision_score(y_pred,y_test), 2)}")
 print(f"F1: {round(f1_score(y_pred,y_test), 2)}")
 print(f"Auc: {round(roc_auc_score(y_pred,y_test), 2)}")
-
-
 
 # Accuracy: 0.79
 # Recall: 0.711
@@ -491,11 +432,7 @@ print(f"Auc: {round(roc_auc_score(y_pred,y_test), 2)}")
 # F1: 0.64
 # Auc: 0.75
 
-
-
-##################################
 # FEATURE IMPORTANCE
-##################################
 
 def plot_importance(model, features, num=len(X), save=False):
     feature_imp = pd.DataFrame({'Value': model.feature_importances_, 'Feature': features.columns})
@@ -512,5 +449,14 @@ def plot_importance(model, features, num=len(X), save=False):
 
 plot_importance(rf_model, X)
 
-import pandas as pd
-from sklearn.model_selection import train_test_split
+#Modelleri Kaydetme
+joblib.dump(diabet_rf_model, "diabet_rf_model.pkl") #Random Forest
+
+# Modelin eğitirken kullanılan verinin sütunlarını almak
+diabet_training_columns = list(df.columns)
+
+# Sütun isimlerini bir .pkl dosyasına kayıt etmek
+with open("diabet_training_columns.pkl", "wb") as f:
+    joblib.dump(diabet_training_columns, f)
+
+print(diabet_training_columns)
